@@ -399,7 +399,28 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
                                            Texture& tex ) {
   // Task 4: 
   // Implement image rasterization (you may want to call fill_sample here)
+  int line = target_w * sample_rate;
+  for (float x = x0; x <= x1; x++) {
+    for (float y = y0; y <= y1; y++) {
+      bool is_out = x < 0 || target_w <= x || y < 0 || target_h <= y;
+      if (is_out) continue;
 
+      float u = (x - x0) / (x1 - x0), v = (y - y0) / (y1 - y0);
+      auto color = sampler->sample_nearest(tex, u, v);
+      for (int posX = 0; posX < sample_rate; posX++) {
+        for (int posY = 0; posY < sample_rate; posY++) {
+          int base_offset = ((int)round(x) + (int)round(y) * line) * sample_rate;
+          int supersample_offset = posX + posY * line;
+          int supersample_color_offset = 4 * (base_offset + supersample_offset);
+
+          supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
+          supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
+          supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
+          supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
+        }
+      }
+    }
+  }
 }
 
 // resolve samples to render target
