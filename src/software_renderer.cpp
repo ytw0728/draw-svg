@@ -409,7 +409,7 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
       auto color = sampler->sample_nearest(tex, u, v);
       for (int posX = 0; posX < sample_rate; posX++) {
         for (int posY = 0; posY < sample_rate; posY++) {
-          int base_offset = ((int)round(x) + (int)round(y) * line) * sample_rate;
+          int base_offset = ((int)floor(x) + (int)floor(y) * line) * sample_rate;
           int supersample_offset = posX + posY * line;
           int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
