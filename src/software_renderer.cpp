@@ -406,7 +406,7 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
       if (is_out) continue;
 
       float u = (x - x0) / (x1 - x0), v = (y - y0) / (y1 - y0);
-      auto color = sampler->sample_nearest(tex, u, v);
+      auto color = sampler->sample_bilinear(tex, u, v);
       for (int posX = 0; posX < sample_rate; posX++) {
         for (int posY = 0; posY < sample_rate; posY++) {
           int base_offset = ((int)floor(x) + (int)floor(y) * line) * sample_rate;
