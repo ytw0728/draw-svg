@@ -17,7 +17,11 @@ namespace CS248 {
 
 // fill a sample location with color
 void SoftwareRendererImp::fill_sample(int sx, int sy, const Color &color) {
-
+  /**
+   * MEMO: 얘는 도대체 왜 있는걸까..?
+   * rasterize_image랑 rasterize_triangle에 적용하라고 하는데,
+   * triangle은 수퍼샘플된 각 샘플마다 inside 체크를 해줘야하고, image는 그렇지가 않다...
+  */
 }
 
 // fill samples in the entire pixel specified by pixel coordinates
@@ -29,20 +33,28 @@ void SoftwareRendererImp::fill_pixel(int x, int y, const Color &color) {
 	if (x < 0 || x >= target_w) return;
 	if (y < 0 || y >= target_h) return;
 
-	Color pixel_color;
-	float inv255 = 1.0 / 255.0;
-	pixel_color.r = render_target[4 * (x + y * target_w)] * inv255;
-	pixel_color.g = render_target[4 * (x + y * target_w) + 1] * inv255;
-	pixel_color.b = render_target[4 * (x + y * target_w) + 2] * inv255;
-	pixel_color.a = render_target[4 * (x + y * target_w) + 3] * inv255;
+  int line = target_w * sample_rate;
+  for (int posX = 0; posX < sample_rate; posX++) {
+    for (int posY = 0; posY < sample_rate; posY++) {
+      int base_offset = (x + y * line) * sample_rate;
+      int supersample_offset = posX + posY * line;
+      int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
-	pixel_color = ref->alpha_blending_helper(pixel_color, color);
+      Color pixel_color;
+      float inv255 = 1.0 / 255.0;
+      pixel_color.r = supersample_target[supersample_color_offset] * inv255;
+      pixel_color.g = supersample_target[supersample_color_offset + 1] * inv255;
+      pixel_color.b = supersample_target[supersample_color_offset + 2] * inv255;
+      pixel_color.a = supersample_target[supersample_color_offset + 3] * inv255;
 
-	render_target[4 * (x + y * target_w)] = (uint8_t)(pixel_color.r * 255);
-	render_target[4 * (x + y * target_w) + 1] = (uint8_t)(pixel_color.g * 255);
-	render_target[4 * (x + y * target_w) + 2] = (uint8_t)(pixel_color.b * 255);
-	render_target[4 * (x + y * target_w) + 3] = (uint8_t)(pixel_color.a * 255);
+      pixel_color = alpha_blending(pixel_color, color);
 
+      supersample_target[supersample_color_offset] = (uint8_t)(pixel_color.r * 255);
+      supersample_target[supersample_color_offset + 1] = (uint8_t)(pixel_color.g * 255);
+      supersample_target[supersample_color_offset + 2] = (uint8_t)(pixel_color.b * 255);
+      supersample_target[supersample_color_offset + 3] = (uint8_t)(pixel_color.a * 255);
+    }
+  }
 }
 
 void SoftwareRendererImp::draw_svg( SVG& svg ) {
@@ -262,19 +274,7 @@ void SoftwareRendererImp::rasterize_point( float x, float y, Color color ) {
   if (sx < 0 || sx >= target_w) return;
   if (sy < 0 || sy >= target_h) return;
 
-  int line = target_w * sample_rate;
-  for (int posX = 0; posX < sample_rate; posX++) {
-    for (int posY = 0; posY < sample_rate; posY++) {
-      int base_offset = (sx + sy * line) * sample_rate;
-      int supersample_offset = posX + posY * line;
-      int supersample_color_offset = 4 * (base_offset + supersample_offset);
-
-      supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
-      supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
-      supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
-      supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
-    }
-  }
+  fill_pixel(x, y, color);
 }
 
 void SoftwareRendererImp::rasterize_line( float x0, float y0,
@@ -314,10 +314,19 @@ void SoftwareRendererImp::rasterize_line( float x0, float y0,
           int supersample_offset = posX + posY * line;
           int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
-          supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
-          supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
-          supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
-          supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
+          Color pixel_color;
+          float inv255 = 1.0 / 255.0;
+          pixel_color.r = supersample_target[supersample_color_offset] * inv255;
+          pixel_color.g = supersample_target[supersample_color_offset + 1] * inv255;
+          pixel_color.b = supersample_target[supersample_color_offset + 2] * inv255;
+          pixel_color.a = supersample_target[supersample_color_offset + 3] * inv255;
+
+          pixel_color = alpha_blending(pixel_color, color);
+
+          supersample_target[supersample_color_offset] = (uint8_t)(pixel_color.r * 255);
+          supersample_target[supersample_color_offset + 1] = (uint8_t)(pixel_color.g * 255);
+          supersample_target[supersample_color_offset + 2] = (uint8_t)(pixel_color.b * 255);
+          supersample_target[supersample_color_offset + 3] = (uint8_t)(pixel_color.a * 255);
         }
       }
     }
@@ -345,10 +354,19 @@ void SoftwareRendererImp::rasterize_line( float x0, float y0,
           int supersample_offset = posX + posY * line;
           int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
-          supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
-          supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
-          supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
-          supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
+          Color pixel_color;
+          float inv255 = 1.0 / 255.0;
+          pixel_color.r = supersample_target[supersample_color_offset] * inv255;
+          pixel_color.g = supersample_target[supersample_color_offset + 1] * inv255;
+          pixel_color.b = supersample_target[supersample_color_offset + 2] * inv255;
+          pixel_color.a = supersample_target[supersample_color_offset + 3] * inv255;
+
+          pixel_color = alpha_blending(pixel_color, color);
+
+          supersample_target[supersample_color_offset] = (uint8_t)(pixel_color.r * 255);
+          supersample_target[supersample_color_offset + 1] = (uint8_t)(pixel_color.g * 255);
+          supersample_target[supersample_color_offset + 2] = (uint8_t)(pixel_color.b * 255);
+          supersample_target[supersample_color_offset + 3] = (uint8_t)(pixel_color.a * 255);
         }
       }
     }
@@ -383,10 +401,19 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
             int supersample_offset = posX + posY * line;
             int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
-            supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
-            supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
-            supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
-            supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
+            Color pixel_color;
+            float inv255 = 1.0 / 255.0;
+            pixel_color.r = supersample_target[supersample_color_offset] * inv255;
+            pixel_color.g = supersample_target[supersample_color_offset + 1] * inv255;
+            pixel_color.b = supersample_target[supersample_color_offset + 2] * inv255;
+            pixel_color.a = supersample_target[supersample_color_offset + 3] * inv255;
+
+            pixel_color = alpha_blending(pixel_color, color);
+
+            supersample_target[supersample_color_offset] = (uint8_t)(pixel_color.r * 255);
+            supersample_target[supersample_color_offset + 1] = (uint8_t)(pixel_color.g * 255);
+            supersample_target[supersample_color_offset + 2] = (uint8_t)(pixel_color.b * 255);
+            supersample_target[supersample_color_offset + 3] = (uint8_t)(pixel_color.a * 255);
           }
         }
       }
@@ -413,10 +440,19 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
           int supersample_offset = posX + posY * line;
           int supersample_color_offset = 4 * (base_offset + supersample_offset);
 
-          supersample_target[supersample_color_offset] = (uint8_t)(color.r * 255);
-          supersample_target[supersample_color_offset + 1] = (uint8_t)(color.g * 255);
-          supersample_target[supersample_color_offset + 2] = (uint8_t)(color.b * 255);
-          supersample_target[supersample_color_offset + 3] = (uint8_t)(color.a * 255);
+          Color pixel_color;
+          float inv255 = 1.0 / 255.0;
+          pixel_color.r = supersample_target[supersample_color_offset] * inv255;
+          pixel_color.g = supersample_target[supersample_color_offset + 1] * inv255;
+          pixel_color.b = supersample_target[supersample_color_offset + 2] * inv255;
+          pixel_color.a = supersample_target[supersample_color_offset + 3] * inv255;
+
+          pixel_color = alpha_blending(pixel_color, color);
+
+          supersample_target[supersample_color_offset] = (uint8_t)(pixel_color.r * 255);
+          supersample_target[supersample_color_offset + 1] = (uint8_t)(pixel_color.g * 255);
+          supersample_target[supersample_color_offset + 2] = (uint8_t)(pixel_color.b * 255);
+          supersample_target[supersample_color_offset + 3] = (uint8_t)(pixel_color.a * 255);
         }
       }
     }
@@ -461,7 +497,22 @@ Color SoftwareRendererImp::alpha_blending(Color pixel_color, Color color)
 {
   // Task 5
   // Implement alpha compositing
-  return pixel_color;
+  pixel_color = Color(
+    pixel_color.r * pixel_color.a,
+    pixel_color.g * pixel_color.a,
+    pixel_color.b * pixel_color.a,
+    pixel_color.a);
+  color = Color(
+    color.r * color.a,
+    color.g * color.a,
+    color.b * color.a,
+    color.a);
+  return Color(
+    (1 - color.a) * pixel_color.r + color.r,
+    (1 - color.a) * pixel_color.g + color.g,
+    (1 - color.a) * pixel_color.b + color.b,
+    1 - (1 - color.a) * (1 - pixel_color.a)
+  );
 }
 
 } // namespace CS248

@@ -42,11 +42,24 @@
         },
         {
             "type": "shell",
-            "label": "cmake:run",
+            "label": "cmake:run (basic)",
             "options": {
                 "cwd": "${workspaceRoot}/build"
             },
             "command": "./drawsvg ../svg/basic",
+            "problemMatcher": [],
+            "group": {
+                "kind": "run",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "shell",
+            "label": "cmake:run (alpha)",
+            "options": {
+                "cwd": "${workspaceRoot}/build"
+            },
+            "command": "./drawsvg ../svg/alpha",
             "problemMatcher": [],
             "group": {
                 "kind": "run",
