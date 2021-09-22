@@ -83,10 +83,15 @@ Color Sampler2DImp::sample_nearest(Texture& tex,
                                    int level) {
 
   // Task 4: Implement nearest neighbour interpolation
-  
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  auto mipmap = tex.mipmap[level];
+  int w = min((int)mipmap.width, max(0, (int)round(u * mipmap.width))), h = min((int)mipmap.height, max(0, (int)round(v * mipmap.height)));
 
+  int base_color_offset = 4 * (w + h * mipmap.width);
+  return Color(
+    (float)mipmap.texels[base_color_offset] / 255,
+    (float)mipmap.texels[base_color_offset + 1] / 255,
+    (float)mipmap.texels[base_color_offset + 2] / 255,
+    (float)mipmap.texels[base_color_offset + 3] / 255);
 }
 
 Color Sampler2DImp::sample_bilinear(Texture& tex, 
@@ -95,9 +100,27 @@ Color Sampler2DImp::sample_bilinear(Texture& tex,
   
   // Task 4: Implement bilinear filtering
 
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  auto mipmap = tex.mipmap[level];
+  int floor_w = max(0, (int)floor(u * mipmap.width)),  floor_h = max(0, (int)floor(v * mipmap.height));
 
+  double s = u * mipmap.width, t = v * mipmap.height;
+
+  Color ret(0.0, 0.0, 0.0, 0.0);
+  for (int i = 0; i <= 1; i++) {
+    for (int j = 0; j <= 1; j++) {
+      int now_w = min((int)mipmap.width, floor_w + i);
+      int now_h = min((int)mipmap.height, floor_h + j);
+
+      double proportion = (1 - abs(now_w - s)) * (1 - abs(now_h - t));
+      int base_color_offset = 4 * (now_w + now_h * mipmap.width);
+      ret.r += (mipmap.texels[base_color_offset] / 255.0) * proportion;
+      ret.g += (mipmap.texels[base_color_offset + 1] / 255.0) * proportion;
+      ret.b += (mipmap.texels[base_color_offset + 2] / 255.0) * proportion;
+      ret.a += (mipmap.texels[base_color_offset + 3] / 255.0) * proportion;
+    }
+  }
+
+  return ret;
 }
 
 Color Sampler2DImp::sample_trilinear(Texture& tex, 
